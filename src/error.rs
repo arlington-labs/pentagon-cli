@@ -19,6 +19,12 @@ pub enum CliError {
     #[error("the Slack credential belongs to a different workspace")]
     WrongSlackWorkspace,
 
+    #[error("this Slack workspace is already bound to another Pentagon organization")]
+    WorkspaceAlreadyBound,
+
+    #[error("this Pentagon organization is already bound to another Slack workspace")]
+    OrganizationAlreadyBoundToWorkspace,
+
     #[error(
         "the operation stopped because Slack app creation may have succeeded; inspect the app dashboard before retrying"
     )]
@@ -39,7 +45,9 @@ impl CliError {
         match self {
             Self::InvalidInput(_) => 2,
             Self::PentagonAuthorizationRequired | Self::SlackAuthorizationRequired => 3,
-            Self::WrongSlackWorkspace => 4,
+            Self::WrongSlackWorkspace
+            | Self::WorkspaceAlreadyBound
+            | Self::OrganizationAlreadyBoundToWorkspace => 4,
             Self::CreateOutcomeUnknown => 5,
             Self::CredentialStore
             | Self::Remote(_)

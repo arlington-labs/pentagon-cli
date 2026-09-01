@@ -172,7 +172,13 @@ impl HttpPentagonApi {
                 })
             })
             .unwrap_or_else(|| format!("http_{}", status.as_u16()));
-        CliError::Remote(code)
+        match code.as_str() {
+            "workspace_already_bound" => CliError::WorkspaceAlreadyBound,
+            "organization_already_bound_to_workspace" => {
+                CliError::OrganizationAlreadyBoundToWorkspace
+            }
+            _ => CliError::Remote(code),
+        }
     }
 }
 
@@ -445,6 +451,7 @@ pub struct CreateSessionRequest<'a> {
     pub agent_id: Uuid,
     pub idempotency_key: &'a str,
     pub background_color: &'a str,
+    pub slack_team_id: &'a str,
 }
 
 pub struct RegisterAppRequest<'a> {
@@ -496,6 +503,7 @@ struct CreateSessionBody<'a> {
     agent_id: Uuid,
     idempotency_key: &'a str,
     background_color: &'a str,
+    slack_team_id: &'a str,
 }
 
 #[derive(Serialize)]
@@ -548,6 +556,7 @@ impl ProvisioningApi for HttpPentagonApi {
                 agent_id: request.agent_id,
                 idempotency_key: request.idempotency_key,
                 background_color: request.background_color,
+                slack_team_id: request.slack_team_id,
             })
             .send()
             .await
@@ -664,8 +673,8 @@ mod tests {
     use uuid::Uuid;
 
     use super::{
-        AgentApi, CreateAgentRequest, HttpPentagonApi, OrganizationEndpoint, ProvisioningApi,
-        allowed_local_api_override,
+        AgentApi, CreateAgentRequest, CreateSessionRequest, HttpPentagonApi, OrganizationEndpoint,
+        ProvisioningApi, allowed_local_api_override,
     };
     use url::Url;
 
@@ -798,5 +807,36 @@ mod tests {
         let request = request.recv().unwrap();
         assert!(request.starts_with(&format!("GET /slack/agents/{agent_id} HTTP/1.1")));
         assert!(!request.contains("POST "));
+    }
+
+    #[tokio::test]
+    async fn session_creation_sends_only_the_observed_workspace_identifier() {
+        let agent_id = Uuid::from_u128(2);
+        let (base_url, request) = one_response(&format!(
+            r#"{{"contract_version":1,"session_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","agent_id":"{agent_id}","state":"requested","state_version":1,"slack_app_id":null,"expected_slack_team_id":"TEXAMPLE01","registration_nonce":"nonce","bootstrap_manifest":{{}},"desired_manifest":{{}},"desired_manifest_version":1,"desired_manifest_hash":"{}","observed_manifest_hash":null,"oauth_url":null,"expires_at":"2026-09-06T00:00:00Z","safe_error_code":null}}"#,
+            "a".repeat(64),
+        ));
+        let api = HttpPentagonApi::new(OrganizationEndpoint {
+            slug: "example-org".to_owned(),
+            base_url,
+        })
+        .unwrap();
+
+        api.create_session(
+            &SecretString::from("pga_test"),
+            &CreateSessionRequest {
+                agent_id,
+                idempotency_key: "example-session-1234",
+                background_color: "#123abc",
+                slack_team_id: "TEXAMPLE01",
+            },
+        )
+        .await
+        .unwrap();
+
+        let request = request.recv().unwrap();
+        assert!(request.starts_with("POST /slack/sessions HTTP/1.1"));
+        assert!(request.contains(r#""slack_team_id":"TEXAMPLE01""#));
+        assert!(!request.contains("xoxe-"));
     }
 }
