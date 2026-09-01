@@ -4,20 +4,20 @@
 
 ## Install
 
-Install the CLI directly from source:
+Install the tested pilot build directly from source:
 
 ```console
-cargo install --git https://github.com/arlington-labs/pentagon-cli.git --locked
+cargo install --git https://github.com/arlington-labs/pentagon-cli.git --rev f11ac3dfca9200225ca854f04dffb793546860f3 --locked
 pentagon --version
 ```
 
 This requires Rust 1.91 or newer. If Rust is already installed through `rustup`,
 `rustup update stable` supplies the required toolchain.
 
-To update an existing installation:
+To reinstall the tested build over an existing installation:
 
 ```console
-cargo install --git https://github.com/arlington-labs/pentagon-cli.git --locked --force
+cargo install --git https://github.com/arlington-labs/pentagon-cli.git --rev f11ac3dfca9200225ca854f04dffb793546860f3 --locked --force
 pentagon --version
 ```
 
