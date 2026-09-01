@@ -50,6 +50,7 @@ pub async fn provision_slack(
                     agent_id,
                     idempotency_key: &idempotency,
                     background_color: agent_color,
+                    slack_team_id: observed_team_id,
                 },
             )
             .await?
